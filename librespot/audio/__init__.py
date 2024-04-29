@@ -1,6 +1,5 @@
 from __future__ import annotations
 import base64
-from pywidevine.pssh import PSSH
 from librespot import util
 from librespot.audio.decrypt import AesAudioDecrypt
 from librespot.audio.format import SuperAudioFormat
@@ -270,8 +269,19 @@ class AudioKeyManager(PacketsReceiver, Closeable):
             if not json:
                 raise IOError("Seektable seems empty")
         
-            pssh = PSSH(json.get("pssh_widevine"))
-            return base64.b64decode(base64.urlsafe_b64encode(pssh.key_ids.pop(0).bytes))
+            wideresponse = self.__session.client() \
+                .post("https://integration.widevine.com/_/pssh_decode", json.get("pssh_widevine"))
+            
+            widejson = response.text()
+            if not widejson:
+                raise IOError("Widevine decoders seems empty")
+
+            json_start = widejson.find('{"algorithm":')
+
+            # Parse the JSON object
+            json_data = json.loads(widejson[json_start:])
+
+            return base64.b64decode(base64.urlsafe_b64encode(json_data.get("key_ids").pop(0).bytes))
         except:
             seq: int
             with self.__seq_holder_lock:

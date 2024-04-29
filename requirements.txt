@@ -1,8 +1,7 @@
 defusedxml==0.7.1
-protobuf==4.25.1
+protobuf==3.20.1
 pycryptodomex==3.20.0
 pyogg==0.6.14a.1
 requests==2.31.0
 websocket-client==1.7.0
-pywidevine==1.8.0
 zeroconf==0.131.0
