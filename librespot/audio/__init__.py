@@ -272,7 +272,7 @@ class AudioKeyManager(PacketsReceiver, Closeable):
             wideresponse = self.__session.client() \
                 .post("https://integration.widevine.com/_/pssh_decode", json.get("pssh_widevine"))
             
-            widejson = response.text()
+            widejson = wideresponse.text()
             if not widejson:
                 raise IOError("Widevine decoders seems empty")
 
