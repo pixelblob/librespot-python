@@ -1,4 +1,5 @@
 from __future__ import annotations
+import base64
 from librespot import util
 from librespot.audio.decrypt import AesAudioDecrypt
 from librespot.audio.format import SuperAudioFormat
@@ -258,27 +259,51 @@ class AudioKeyManager(PacketsReceiver, Closeable):
                       gid: bytes,
                       file_id: bytes,
                       retry: bool = True) -> bytes:
-        seq: int
-        with self.__seq_holder_lock:
-            seq = self.__seq_holder
-            self.__seq_holder += 1
-        out = io.BytesIO()
-        out.write(file_id)
-        out.write(gid)
-        out.write(struct.pack(">i", seq))
-        out.write(self.__zero_short)
-        out.seek(0)
-        self.__session.send(Packet.Type.request_key, out.read())
-        callback = AudioKeyManager.SyncCallback(self)
-        self.__callbacks[seq] = callback
-        key = callback.wait_response()
-        if key is None:
-            if retry:
-                return self.get_audio_key(gid, file_id, False)
-            raise RuntimeError(
-                "Failed fetching audio key! gid: {}, fileId: {}".format(
-                    util.bytes_to_hex(gid), util.bytes_to_hex(file_id)))
-        return key
+        try:
+            response = self.__session.client() \
+                .get("https://seektables.scdn.co/seektable/{}.json".format(util.bytes_to_hex(file_id)))
+            if response.status_code != 200:
+                raise IOError("{}".format(response.status_code))
+        
+            json = response.json()
+            if not json:
+                raise IOError("Seektable seems empty")
+        
+            wideresponse = self.__session.client() \
+                .post("https://integration.widevine.com/_/pssh_decode", json.get("pssh_widevine"))
+            
+            widejson = wideresponse.text()
+            if not widejson:
+                raise IOError("Widevine decoders seems empty")
+
+            json_start = widejson.find('{"algorithm":')
+
+            # Parse the JSON object
+            json_data = json.loads(widejson[json_start:])
+
+            return base64.b64decode(base64.urlsafe_b64encode(json_data.get("key_ids").pop(0).bytes))
+        except:
+            seq: int
+            with self.__seq_holder_lock:
+                seq = self.__seq_holder
+                self.__seq_holder += 1
+            out = io.BytesIO()
+            out.write(file_id)
+            out.write(gid)
+            out.write(struct.pack(">i", seq))
+            out.write(self.__zero_short)
+            out.seek(0)
+            self.__session.send(Packet.Type.request_key, out.read())
+            callback = AudioKeyManager.SyncCallback(self)
+            self.__callbacks[seq] = callback
+            key = callback.wait_response()
+            if key is None:
+                if retry:
+                    return self.get_audio_key(gid, file_id, False)
+                raise RuntimeError(
+                    "Failed fetching audio key! gid: {}, fileId: {}".format(
+                        util.bytes_to_hex(gid), util.bytes_to_hex(file_id)))
+            return key
 
     class Callback:
 

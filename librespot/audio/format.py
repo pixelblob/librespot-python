@@ -6,6 +6,7 @@ class SuperAudioFormat(enum.Enum):
     MP3 = 0x00
     VORBIS = 0x01
     AAC = 0x02
+    MP4 = 0x03
 
     @staticmethod
     def get(audio_format: Metadata.AudioFile.Format):
@@ -29,4 +30,8 @@ class SuperAudioFormat(enum.Enum):
                 Metadata.AudioFile.Format.AAC_24_NORM,
         ]:
             return SuperAudioFormat.AAC
+        if audio_format in [
+                Metadata.AudioFile.Format.MP4_128,
+        ]:
+            return SuperAudioFormat.MP4
         raise RuntimeError("Unknown audio format: {}".format(audio_format))

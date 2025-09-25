@@ -270,6 +270,7 @@ message AudioFile {
         MP3_160_ENC = 7;
         AAC_24 = 8;
         AAC_48 = 9;
+        MP4_128 = 11;
         AAC_24_NORM = 16;
     }
 }
